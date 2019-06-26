@@ -1271,7 +1271,12 @@ meaning:
 
 (defun use-package-hook-handler-normalize-mode-symbols (syms)
   "Ensure that `SYMS' turns into a list of modes."
-  (if (use-package-non-nil-symbolp syms) (list syms) syms))
+  (if (use-package-non-nil-symbolp syms)
+      (condition-case _err
+          (symbol-value syms)
+        (error
+         (list syms)))
+    syms))
 
 ;;;; :commands
 

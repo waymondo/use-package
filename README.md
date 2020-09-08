@@ -18,6 +18,47 @@ and loading of packages.
 
 Notes for users upgrading to 2.x are located [at the bottom](#upgrading-to-2x).
 
+- [Installing use-package](#installing-use-package)
+- [Getting started](#getting-started)
+- [Key-binding](#key-binding)
+	+ [Binding to keymaps](#binding-to-keymaps)
+	+ [Binding within local keymaps](#binding-within-local-keymaps)
+- [Modes and interpreters](#modes-and-interpreters)
+- [Magic handlers](#magic-handlers)
+- [Hooks](#hooks)
+- [Package customization](#package-customization)
+  + [Customizing variables](#customizing-variables)
+  + [Customizing faces](#customizing-faces)
+- [Notes about lazy loading](#notes-about-lazy-loading)
+- [Information about package loads](#information-about-package-loads)
+- [Conditional loading](#conditional-loading)
+	+ [Conditional loading before :preface](#conditional-loading-before-preface)
+	+ [Loading packages in a sequence](#loading-packages-in-sequence)
+	+ [Prevent loading if dependencies are missing](#prevent-loading-if-dependencies-are-missing)
+- [Byte compiling your .emacs](#byte-compiling-your-emacs)
+	+ [Prevent a package from loading at compile-time](#prevent-a-package-from-loading-at-compile-time)
+- [Extending the load-path](#extending-the-load-path)
+- [Catching errors during use-package expansion](#catching-errors-during-use-package-expansion)
+- [Diminishing and delighting minor modes](#diminishing-and-delighting-minor-modes)
+- [Package installation](#package-installation)
+	+ [Usage with other package managers](#usage-with-other-package-managers)
+- [Gathering Statistics](#gathering-statistics)
+- [Keyword Extensions](#keyword-extensions)
+	+ [use-package-ensure-system-package](#use-package-ensure-system-package)
+	+ [use-package-chords](#use-package-chords)
+	+ [How to create an extension](#how-to-create-an-extension)
+		+ [First step: Add the keyword](#first-step-add-the-keyword)
+		+ [Second step: Create a normalizer](#second-step-create-a-normalizer)
+		+ [Third step: Create a handler](#third-step-create-a-handler)
+		+ [Fourth step: Test it out](#fourth-step-test-it-out)
+- [Some timing results](#some-timing-results)
+* [Upgrading to 2.x](#upgrading-to-2x)
+	+ [Semantics of :init is now consistent](#semantics-of-init-is-now-consistent)
+	+ [:idle has been removed](#idle-has-been-removed)
+	+ [:defer now accepts an optional numeric argument](#defer-now-accepts-an-optional-numeric-argument)
+	+ [Add :preface, occuring before everything except :disabled](#add-preface-occurring-before-everything-except-disabled)
+	+ [Add :functions, for declaring functions to the byte-compiler](#add-functions-for-declaring-functions-to-the-byte-compiler)
+	+ [use-package.el is no longer needed at runtime](#use-packageel-is-no-longer-needed-at-runtime)
 ## Installing use-package
 
 Either clone from this GitHub repository or install from
@@ -261,8 +302,8 @@ string `"%PDF"`.
 
 ## Hooks
 
-The `:hook` keyword allows adding functions onto hooks, here only the basename
-of the hook is required. Thus, all of the following are equivalent:
+The `:hook` keyword allows adding functions onto package hooks. Thus,
+all of the following are equivalent:
 
 ``` elisp
 (use-package ace-jump-mode
@@ -298,6 +339,20 @@ equivalent:
   (add-hook 'text-mode-hook #'ace-jump-mode))
 ```
 
+When using `:hook` omit the "-hook" suffix if you specify the hook
+explicitly, as this is appended by default. For example the following
+code will not work as it attempts to add to the `prog-mode-hook-hook`
+which does not exist:
+
+``` elisp
+;; DOES NOT WORK
+(use-package ace-jump-mode
+  :hook (prog-mode-hook . ace-jump-mode))
+```
+
+If you do not like this behaviour, set `use-package-hook-name-suffix`
+to nil. By default the value of this variable is "-hook".
+
 The use of `:hook`, as with `:bind`, `:mode`, `:interpreter`, etc., causes the
 functions being hooked to implicitly be read as `:commands` (meaning they will
 establish interactive `autoload` definitions for that module, if not already
@@ -321,8 +376,12 @@ The documentation string is not mandatory.
 **NOTE**: these are only for people who wish to keep customizations with their
 accompanying use-package declarations. Functionally, the only benefit over
 using `setq` in a `:config` block is that customizations might execute code
-when values are assigned. If you currently use `M-x customize-option` and save
-to a settings file, you do not want to use this option.
+when values are assigned.
+
+**NOTE**: The customized values are **not** saved in the Emacs `custom-file`.
+Thus you should either use the `:custom` option **or** you should use `M-x
+customize-option` which will save customized values in the Emacs `custom-file`.
+Do not use both.
 
 ### Customizing faces
 
@@ -460,7 +519,7 @@ been loaded, or both `baz` and `quux` have been loaded.
 
 **NOTE**: pay attention if you set `use-package-always-defer` to t, and also use
 the `:after` keyword, as you will need to specify how the declared package is
-to be loaded: e.g., by some `:bind`. If you're not using one of tho mechanisms
+to be loaded: e.g., by some `:bind`. If you're not using one of the mechanisms
 that registers autoloads, such as `:bind` or `:hook`, and your package manager
 does not provide autoloads, it's possible that without adding `:demand t` to
 those declarations, your package will never be loaded.
@@ -811,7 +870,7 @@ Here’s an example of usage:
 This will expect a global binary package to exist called `rg`. If it
 does not, it will use your system package manager (using the package
 [`system-packages`](https://gitlab.com/jabranham/system-packages)) to
-attempt an install of a binary by the same name asyncronously. For
+attempt an install of a binary by the same name asynchronously. For
 example, for most `macOS` users this would call: `brew install rg`.
 
 If the package is named differently than the binary, you can use a
